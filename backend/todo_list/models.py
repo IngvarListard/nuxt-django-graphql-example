@@ -16,15 +16,17 @@ class Category(models.Model):
 
 
 def get_due_date():
+    """ На выполнение задачи по-умолчанию даётся один день """
     return timezone.now() + timedelta(days=1)
 
 
 class Todo(models.Model):
     title = models.CharField(max_length=250)
-    description = models.TextField(blank=True)
+    text = models.TextField(blank=True)
     created_date = models.DateField(auto_now_add=True)
     due_date = models.DateField(default=get_due_date)
     category = models.ForeignKey(Category, related_name='todo_list', on_delete=models.PROTECT)
+    done = models.BooleanField(default=False)
 
     class Meta:
         ordering = ('-created_date',)

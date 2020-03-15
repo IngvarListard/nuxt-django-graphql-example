@@ -54,7 +54,7 @@
           </v-flex>
           <v-flex xs12>
             <v-textarea
-              v-model="newTodo.description"
+              v-model="newTodo.text"
               :rules="[nonEmptyField]"
               label="Описание"
               prepend-icon="description"
@@ -76,7 +76,12 @@
           prepend-icon="category"
         />
         <v-spacer />
-        <v-btn :disabled="!valid" @click="add" color="blue lighten-1" flat
+        <v-btn
+          :disabled="!valid"
+          :loading="loading"
+          @click="add"
+          color="blue lighten-1"
+          flat
           >Добавить</v-btn
         >
       </v-card-actions>
@@ -85,16 +90,28 @@
 </template>
 
 <script>
+// импортируем свеженаписанные запросы
+import { ADD_TODO, GET_CATEGORIES, GET_TODO_LIST } from '../graphql'
+
 export default {
   name: 'NewTodoForm',
   data() {
     return {
       newTodo: null,
-      categories: ['Дом', 'Работа', 'Семья', 'Учеба'],
+      categories: [],
       valid: false,
       menu: false,
       nonEmptyField: text =>
-        text ? !!text.length : 'Поле не должно быть пустым'
+        text ? !!text.length : 'Поле не должно быть пустым',
+      loading: false // индикация выполнения запроса
+    }
+  },
+  apollo: {
+    categories: {
+      query: GET_CATEGORIES,
+      update({ categories }) {
+        return categories.map(c => c.name)
+      }
     }
   },
   created() {
@@ -102,14 +119,48 @@ export default {
   },
   methods: {
     add() {
-      this.$emit('add', this.newTodo)
-      this.clear()
-      this.$refs.form.reset()
+      this.loading = true
+      this.$apollo
+        .mutate({
+          mutation: ADD_TODO,
+          variables: {
+            ...this.newTodo
+          },
+          // кэш аполло позволяет манипулировать данными из этого кэша, вне зависимости
+          // от того, в каком компоненте выполняется код. Здесь в качестве ответа
+          // сервера мы получаем новую запись Todo. Добавляем её в кэш, записываем
+          // обратно по запросу GET_TODO_LIST, таким образом переменная Apollo
+          // сам разошлет всем подписчикам данного запроса измененные данные. В нашем
+          // случае подписчиком является переменная todoList в компоненте index.vue
+          update: (store, { data: { addTodo } }) => {
+            // если в кэше отсутствуют данные по запросу, то бросится исключение
+            const todoListData = store.readQuery({ query: GET_TODO_LIST })
+            todoListData.todoList.unshift(addTodo)
+            store.writeQuery({ query: GET_CATEGORIES, data: todoListData })
+
+            const categoriesData = store.readQuery({ query: GET_CATEGORIES })
+            // В списке категорий ищем категорию новой записи Todo. При неудачном поиске
+            // добавляем в кэш. Таким образом селектор категорий всегда остается
+            // в актуальном состоянии
+            const category = categoriesData.categories.find(
+              c => c.name === addTodo.category.name
+            )
+            if (!category) {
+              categoriesData.categories.push(addTodo.category)
+              store.writeQuery({ query: GET_CATEGORIES, data: categoriesData })
+            }
+          }
+        })
+        .then(() => {
+          this.clear()
+          this.loading = false
+          this.$refs.form.reset() // сброс валидации формы
+        })
     },
     clear() {
       this.newTodo = {
         title: '',
-        description: '',
+        text: '',
         dueDate: '',
         category: ''
       }

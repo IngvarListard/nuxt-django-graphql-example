@@ -31,9 +31,8 @@ export default ctx => {
     }
   })
   // объединяем middleware в цепочку
-  // const middleware = concat(csrfMiddleware, ssrMiddleware)
   const httpLink = new HttpLink({
-    uri: 'http://localhost:8000/graphql',
+    uri: 'http://localhost:8000/graphql/',
     credentials: 'include'
   })
   const link = from([csrfMiddleware, ssrMiddleware, httpLink])
