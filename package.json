@@ -18,7 +18,8 @@
     "cookie-universal-nuxt": "^2.1.2",
     "cross-env": "^5.2.0",
     "graphql-tag": "^2.10.3",
-    "nuxt": "^2.0.0"
+    "nuxt": "^2.0.0",
+    "core-js": "^2.6.5"
   },
   "devDependencies": {
     "nodemon": "^1.18.9",
